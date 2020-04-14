@@ -1,0 +1,66 @@
+static void includeDynamic(Gradle gradle, Settings settings, List moduleInfoList) {
+    moduleInfoList.forEach({ info ->
+        if (!info["sourceInclude"]) return
+        String name = ":${info["artifactId"]}"
+        settings.include(name)
+        settings.project(name).projectDir = new File(info["path"])
+
+        if (info["hasApiModule"] != true) return
+        settings.include("${name}_api")
+        settings.project("${name}_api").projectDir = new File("${info["path"]}_api")
+    })
+    gradle.allprojects { prj ->
+        prj.configurations.all(new Action<Configuration>() {
+            @Override
+            void execute(Configuration config) {
+                config.resolutionStrategy.dependencySubstitution(new Action<DependencySubstitutions>() {
+                    @Override
+                    void execute(DependencySubstitutions dependencySubstitutions) {
+                        moduleInfoList.forEach { info ->
+                            if (!info["sourceInclude"]) return
+                            dependencySubstitutions.substitute(dependencySubstitutions.module("${info["group"]}:${info["artifactId"]}"))
+                                    .with(dependencySubstitutions.project(":${info["artifactId"]}"))
+
+                            if (info["hasApiModule"] != true) return
+                            dependencySubstitutions.substitute(dependencySubstitutions.module("${info["group"]}:${info["artifactId"]}_api"))
+                                    .with(dependencySubstitutions.project(":${info["artifactId"]}_api"))
+                        }
+                    }
+                })
+            }
+        })
+    }
+}
+
+static void invalidChangingModuleCache(Gradle gradle) {
+    gradle.allprojects { prj ->
+        prj.configurations.all(new Action<Configuration>() {
+            @Override
+            void execute(Configuration config) {
+                config.resolutionStrategy {
+                    cacheChangingModulesFor 0, 'seconds'
+                }
+            }
+        })
+    }
+}
+
+static def findProperty(String key, def defValue) {
+    try {
+        def localProperties = new Properties()
+        def inputStream = new File('local.properties').newDataInputStream()
+        localProperties.load(inputStream)
+
+        def result = localProperties.getProperty(key)
+
+        return result != null ? result : defValue
+    } catch (Exception ignored) {
+        return defValue
+    }
+}
+
+ext {
+    includeDynamic = this.&includeDynamic
+    invalidChangingModuleCache = this.&invalidChangingModuleCache
+    findProperty = this.&findProperty
+}

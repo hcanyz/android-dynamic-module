@@ -1,0 +1,25 @@
+apply from: "https://raw.githubusercontent.com/hcanyz/android-dynamic-module/master/dynamic_include_module.gradle"
+
+invalidChangingModuleCache(gradle)
+
+List moduleInfoList = [
+        [sourceInclude: Boolean.valueOf(findProperty("app_login.sourceInclude", false)),
+         hasApiModule : true,
+         artifactId   : "app_login",
+         group        : "com.github.hcanyz",
+         path         : "app_login/app_login"],
+
+        [sourceInclude: Boolean.valueOf(findProperty("app_xxx.sourceInclude", false)),
+         hasApiModule : true,
+         artifactId   : "app_xxx",
+         group        : "com.github.hcanyz",
+         path         : "app_xxx/app_xxx"],
+
+        //no api module
+        [sourceInclude: Boolean.valueOf(findProperty("vendor_xxx.sourceInclude", false)),
+         artifactId   : "vendor_xxx",
+         group        : "com.github.hcanyz",
+         path         : "vendor_xxx/vendor_xxx"],
+]
+
+includeDynamic(gradle, settings, moduleInfoList)
