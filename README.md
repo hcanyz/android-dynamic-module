@@ -1,5 +1,15 @@
 # 组件化整体方案
-## 目录结构
+## 原始方案
+![](./img/api-frame-old.png)
+
+
+## 基于api处理模块间依赖
+![](./img/api-frame-new.png)
+
+
+整体架构图
+![](./img/frame.png)
+
 ```
 app
 - app_* (业务模块文件夹,包含业务模块&业务对外api模块。并且每个业务模块的base层)
@@ -13,11 +23,22 @@ app
 - vendor_* (组件模块)
 ```
 
-![](./img/frame.png)
+## 模块 source引入与maven aar引入
+### 为什么要这样做
+开发中我们有俩种方式引入模块代码，适用于不同场景
+1. implementation "com.android.tools.build:gradle:3.5.2"   
+基于模块代码上传到maven（自建）仓库，由gradle管理文件，通过版本号来更新依赖
+这种方式降低了模块间的耦合、加快了项目的编译方式。但是对代码修改不友好。
 
-![](./img/api-frame.png)
+2. implementation project(":xxx")   
+模块代码在本地有一份，可以直接修改，直接编译运行。但是对于非模块维护人员会照成干扰。
 
-## project source引入与maven aar引入
+因此我们写了一个gradle动态引入脚本，协调这俩种方式，达成一种平衡。
+
+你可以通过一些简单的配置，动态的修改哪些模块时sorce引入，哪些模块时maven aar引入。它时动态的，随时可以切换。
+
+
+### 如何做
 备注：
     1. 原则上业务模块都需要支持动态切换俩种引入方式， 组件模块可以都使用maven aar引入   
     2. 引用其他模块api需要用aar方式（implementation(depsApp.app.app_host1_login_api)）
@@ -67,6 +88,31 @@ app
     ```
 
 ## 各个组件独立初始化
+### 为什么要这样做
+组件化的目的是尽量减少模块间耦合，减少模块对外暴露的细节。
+
+在app初始化过程中，我们经常会写这样的一些代码：
+```kotlin
+Application:
+fun onCreate(){
+    Vendor.init(); //各类sdk
+
+    ModuleA.init()
+
+    ModuleB.init()
+
+    ModuleC.init(()->{
+        ModuleD.init()
+    })
+}
+```
+这样的做法有一些问题：
+1. 对于host模块，它需要知道其他模块init细节
+2. 新加一个host模块（比如员工版）都需要写onCreate过程，没有办法让模块自己去初始化
+
+通过编译过程中，修改字节码可以实现动态的添加初始化代码、并且可以定义任务、依赖、的方式协助模块间初始化的需求。
+
+### 如何做
 #### 需要初始化的模块
 1. build.gradle 添加 implementation deps.vendor.vendor_moduleinit 依赖
 
@@ -96,5 +142,5 @@ app
 4. 指定项目Application 为 com.github.hcanyz.moduleinit.ModuleInitApplication
    或者在自己的Application写一份ModuleInitApplication中的代码
        
-#### ！启动时间关键指标
+#### ！启动时间关键指标（我们在初始化的各个节点中加入了日志）
 接入ModuleInitApplication后可以在logcat中查看 "StartAnalysis" 数据，观察启动时消耗时间 
