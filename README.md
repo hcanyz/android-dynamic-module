@@ -1,4 +1,4 @@
-# 已经合并到 https://github.com/zialone/android-kit项目中。
+# 已经合并到 https://github.com/zialone/android-kit 项目中。
 
 # 组件化整体方案
 ## 原始方案
